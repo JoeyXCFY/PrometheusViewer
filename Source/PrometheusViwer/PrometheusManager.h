@@ -44,9 +44,11 @@ public:
 	TSubclassOf<UUserWidget>WidgetClass;
 
 	UUserWidget* HUDWidget;
-	UTextBlock* MemoryTextRef;
-	UTextBlock* CPUTextRef;
-	
+
+	TArray<FPrometheusQueryInfo> QueryList;
+
+	TMap<FString, TWeakObjectPtr<UTextBlock>> QueryTextMap;
+
 	UFUNCTION()
 	void QueryPrometheus(const FString PromQL, const FString Description);
 	void OnPrometheusResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);

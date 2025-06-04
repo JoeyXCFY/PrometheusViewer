@@ -30,8 +30,21 @@ void APrometheusManager::BeginPlay()
 		if (HUDWidget)
 		{
 			HUDWidget->AddToViewport();
-			MemoryTextRef = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("MemoryUsage")));
-			CPUTextRef = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("CPUUsage")));
+
+			FPrometheusQueryInfo MemoryQuery;
+			MemoryQuery.PromQL = "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100";
+			MemoryQuery.Description = "Memory";
+			MemoryQuery.UITextRef = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("MemoryUsage")));
+
+			FPrometheusQueryInfo CPUQuery;
+			CPUQuery.PromQL = "100 - (avg by(instance)(rate(node_cpu_seconds_total{ mode = \"idle\" } [1m] )) * 100)";
+			CPUQuery.Description = "CPU";
+			CPUQuery.UITextRef = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("CPUUsage")));
+
+			QueryList.Add(MemoryQuery);
+			QueryList.Add(CPUQuery);
+			QueryTextMap.Add(MemoryQuery.Description, MemoryQuery.UITextRef);
+			QueryTextMap.Add(CPUQuery.Description, CPUQuery.UITextRef);
 		}
 	}
 	GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &APrometheusManager::UpdatePrometheus, 5.0f, true, 0.0f);
@@ -41,8 +54,10 @@ void APrometheusManager::BeginPlay()
 
 void APrometheusManager::UpdatePrometheus()
 {
-	QueryPrometheus("(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100", TEXT("Memory"));
-	QueryPrometheus("100 - (avg by(instance)(rate(node_cpu_seconds_total{ mode = \"idle\" } [1m] )) * 100)", TEXT("CPU"));
+	for (const FPrometheusQueryInfo& QueryInfo : QueryList)
+	{
+		QueryPrometheus(QueryInfo.PromQL, QueryInfo.Description);
+	}
 }
 
 void APrometheusManager::QueryPrometheus(const FString PromQL, const FString Description)
@@ -58,7 +73,6 @@ void APrometheusManager::QueryPrometheus(const FString PromQL, const FString Des
 	Request->SetHeader("Authorization", "Basic " + EncodedCredentials);
 	Request->SetURL(URL);
 	//Prometheus HTTP API Query URL設定
-	//UE_LOG(LogTemp, Log, TEXT("URL:%s"), *URL);
 	Request->SetVerb("GET");
 	Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
 	//請求Request
@@ -88,6 +102,12 @@ void APrometheusManager::OnPrometheusResponseReceived(FHttpRequestPtr Request, F
 	TSharedPtr<FJsonObject> JsonObject;
 
 	FString Description = Request->GetHeader("Description");
+	TWeakObjectPtr<UTextBlock>* FoundTextRef = QueryTextMap.Find(Description);
+	if (!FoundTextRef || !FoundTextRef->IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("No TextBlock found for %s"), *Description);
+		return;
+	}
 
 	//解析JSON
 	if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
@@ -120,13 +140,8 @@ void APrometheusManager::OnPrometheusResponseReceived(FHttpRequestPtr Request, F
 						FString ValueStrFormatted = FString::Printf(TEXT("%.3f%%"), Value);
 
 						//更新UI
-						if (Description == "Memory"&& MemoryTextRef)
-						{
-							MemoryTextRef->SetText(FText::FromString(ValueStrFormatted));
-						}
-						if (Description == "CPU" && CPUTextRef)
-						{
-							CPUTextRef->SetText(FText::FromString(ValueStrFormatted));
+						if (FoundTextRef) {
+							FoundTextRef->Get()->SetText(FText::FromString(ValueStrFormatted));
 						}
 					}
 				}

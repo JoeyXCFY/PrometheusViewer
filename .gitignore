@@ -1,0 +1,48 @@
+# Binaries, Intermediate, Build Cache
+Binaries/
+DerivedDataCache/
+Intermediate/
+Saved/
+Build/
+
+# VS / Xcode 工作資料
+.vscode/
+.vs/
+*.VC.db
+*.VC.opendb
+*.sln
+*.suo
+*.user
+*.userosscache
+*.opensdf
+*.sdf
+*.cache
+*.log
+
+# MacOS
+.DS_Store
+
+# Linux
+*.swp
+
+# Auto-generated project files (可選)
+*.xcodeproj
+*.xcworkspace
+*.xcuserdata
+
+# Build artifacts
+*.pdb
+*.exe
+*.dll
+*.app
+*.dylib
+*.so
+*.lib
+*.obj
+*.o
+
+# Crash logs
+*.dmp
+
+# UBT/UBTMake
+*.ubt

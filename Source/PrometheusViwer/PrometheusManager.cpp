@@ -35,15 +35,14 @@ void APrometheusManager::BeginPlay()
 			MemoryQuery.PromQL = "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100";
 			MemoryQuery.Description = "Memory";
 			MemoryQuery.UITextRef = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("MemoryUsage")));
+			QueryList.Add(MemoryQuery);
+			QueryTextMap.Add(MemoryQuery.Description, MemoryQuery.UITextRef);
 
 			FPrometheusQueryInfo CPUQuery;
 			CPUQuery.PromQL = "100 - (avg by(instance)(rate(node_cpu_seconds_total{ mode = \"idle\" } [1m] )) * 100)";
 			CPUQuery.Description = "CPU";
 			CPUQuery.UITextRef = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("CPUUsage")));
-
-			QueryList.Add(MemoryQuery);
 			QueryList.Add(CPUQuery);
-			QueryTextMap.Add(MemoryQuery.Description, MemoryQuery.UITextRef);
 			QueryTextMap.Add(CPUQuery.Description, CPUQuery.UITextRef);
 		}
 	}

@@ -12,6 +12,14 @@
 class UUserWidget;
 class UTextBlock;
 
+struct FDataPoint
+{
+	float Time;
+	float Value;
+
+	FDataPoint(float InTime, float InValue)	: Time(InTime), Value(InValue) {}
+};
+
 USTRUCT(BlueprintType)
 struct FPrometheusQueryInfo
 {

@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class PrometheusViwer : ModuleRules
+public class PrometheusViewer : ModuleRules
 {
-	public PrometheusViwer(ReadOnlyTargetRules Target) : base(Target)
+	public PrometheusViewer(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	

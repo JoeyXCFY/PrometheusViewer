@@ -3,13 +3,13 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
-public class PrometheusViwerTarget : TargetRules
+public class PrometheusViewerEditorTarget : TargetRules
 {
-	public PrometheusViwerTarget(TargetInfo Target) : base(Target)
+	public PrometheusViewerEditorTarget( TargetInfo Target) : base(Target)
 	{
-		Type = TargetType.Game;
+		Type = TargetType.Editor;
 		DefaultBuildSettings = BuildSettingsVersion.V5;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_4;
-		ExtraModuleNames.Add("PrometheusViwer");
+		ExtraModuleNames.Add("PrometheusViewer");
 	}
 }

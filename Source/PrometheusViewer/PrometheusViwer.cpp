@@ -3,4 +3,4 @@
 #include "PrometheusViwer.h"
 #include "Modules/ModuleManager.h"
 
-IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, PrometheusViwer, "PrometheusViwer" );
+IMPLEMENT_PRIMARY_GAME_MODULE( FDefaultGameModuleImpl, PrometheusViewer, "PrometheusViewer" );

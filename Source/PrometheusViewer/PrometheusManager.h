@@ -36,7 +36,7 @@ struct FPrometheusQueryInfo
 };
 
 UCLASS()
-class PROMETHEUSVIWER_API APrometheusManager : public AActor
+class PROMETHEUSVIEWER_API APrometheusManager : public AActor
 {
 	GENERATED_BODY()
 	

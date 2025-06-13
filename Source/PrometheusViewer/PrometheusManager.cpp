@@ -58,7 +58,7 @@ void APrometheusManager::BeginPlay()
 	RangeQueryList.Add(MemoryRangeQuery);
 	LineChartMap.Add(MemoryRangeQuery.Description, MemoryRangeQuery.LineChartWidgetRef);
 
-	GetWorld()->GetTimerManager().SetTimer(QueryTimerHandle, this, &APrometheusManager::UpdatePrometheus, 5.0f, true, 0.0f);
+	GetWorld()->GetTimerManager().SetTimer(QueryTimerHandle, this, &APrometheusManager::UpdatePrometheus, 10.0f, true, 0.0f);
 	GetWorld()->GetTimerManager().SetTimer(RangeQueryTimerHandle, this, &APrometheusManager::UpdateRangeMetrics, 10.0f, true, 0.0f);
 }
 
@@ -218,46 +218,65 @@ void APrometheusManager::OnQueryRangeResponse(FHttpRequestPtr Request, FHttpResp
 			const TArray<TSharedPtr<FJsonValue>>* Results;
 			if ((*DataObject)->TryGetArrayField(TEXT("result"), Results) && Results->Num() > 0)
 			{
-				const TSharedPtr<FJsonObject>* FirstResult;
-				if ((*Results)[0]->TryGetObject(FirstResult))
+				TMap<double, TArray<float>> AggregatedData;
+
+				for (const TSharedPtr<FJsonValue>& ResultValue : *Results)
 				{
-					const TArray<TSharedPtr<FJsonValue>>* Values;
-					if ((*FirstResult)->TryGetArrayField(TEXT("values"), Values))
+					const TSharedPtr<FJsonObject>* ResultObject;
+					if (ResultValue->TryGetObject(ResultObject))
 					{
-						TArray<FDataPoint> DataPoints;
-
-						for (const TSharedPtr<FJsonValue>& ValuePair : *Values)
+						const TArray<TSharedPtr<FJsonValue>>* Values;
+						if ((*ResultObject)->TryGetArrayField(TEXT("values"), Values))
 						{
-							const TArray<TSharedPtr<FJsonValue>>* PairArray;
-							if (ValuePair->TryGetArray(PairArray) && PairArray->Num() == 2)
+							for (const TSharedPtr<FJsonValue>& ValuePair : *Values)
 							{
-								double Timestamp =(* PairArray)[0]->AsNumber();
-								FString ValueStr =(* PairArray)[1]->AsString();
-								float Value = FCString::Atof(*ValueStr);
+								const TArray<TSharedPtr<FJsonValue>>* PairArray;
+								if (ValuePair->TryGetArray(PairArray) && PairArray->Num() == 2)
+								{
+									double Timestamp = (*PairArray)[0]->AsNumber();
+									FString ValueStr = (*PairArray)[1]->AsString();
+									float Value = FCString::Atof(*ValueStr);
 
-								DataPoints.Add(FDataPoint(Timestamp, Value));
+									AggregatedData.FindOrAdd(Timestamp).Add(Value);
+								}
 							}
 						}
-						TArray<FVector2D> ConvertedData;
-
-						for (const FDataPoint& Point : DataPoints)
-						{
-							ConvertedData.Add(FVector2D(Point.Time, Point.Value));
-						}
-
-						if (LineChartMap.Contains(Description) && FoundLineChartRef->IsValid())
-						{
-							// 更新LineChartWidget
-							FoundLineChartRef->Get()->SetChartData(ConvertedData);
-						}
-
-						// Debug log
-						for (const FDataPoint& Point : DataPoints)
-						{
-							UE_LOG(LogTemp, Log, TEXT("Time: %f, Value: %f"), Point.Time, Point.Value);
-						}
-
 					}
+				}
+
+				// 將結果轉為 FVector2D 陣列，合併後取平均 
+				TArray<FVector2D> ConvertedData;
+				for (const TPair<double, TArray<float>>& Entry : AggregatedData)
+				{
+					double Timestamp = Entry.Key;
+					const TArray<float>& Values = Entry.Value;
+
+					if (Values.Num() > 0)
+					{
+						float Sum = 0.0f;
+						for (float V : Values)
+						{
+							Sum += V;
+						}
+						float Avg = Sum / Values.Num();
+						ConvertedData.Add(FVector2D(Timestamp, Avg));
+					}
+				}
+
+				// 時間排序（確保圖表點不亂序）
+				ConvertedData.Sort([](const FVector2D& A, const FVector2D& B) {
+					return A.X < B.X;
+					});
+
+				// 更新圖表
+				if (FoundLineChartRef && FoundLineChartRef->IsValid())
+				{
+					FoundLineChartRef->Get()->SetChartData(ConvertedData);
+				}
+
+				for (const FVector2D& Point : ConvertedData)
+				{
+					UE_LOG(LogTemp, Log, TEXT("Merged Time: %f, Avg Value: %f"), Point.X, Point.Y);
 				}
 			}
 		}

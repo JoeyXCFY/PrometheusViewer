@@ -54,9 +54,19 @@ void APrometheusManager::BeginPlay()
 	MemoryRangeQuery.PromQL = "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100";
 	MemoryRangeQuery.Description = "MemoryRange";
 	MemoryRangeQuery.LineColor = FColor::Green;
+	//same name as LineChartWidget in editor
 	MemoryRangeQuery.LineChartWidgetRef = Cast<ULineChartWidget>(HUDWidget->GetWidgetFromName(TEXT("MemoryLineChart")));
 	RangeQueryList.Add(MemoryRangeQuery);
 	LineChartMap.Add(MemoryRangeQuery.Description, MemoryRangeQuery.LineChartWidgetRef);
+
+	FPrometheusRangeQueryInfo CPURangeQuery;
+	CPURangeQuery.PromQL = "100 - (avg by(instance)(rate(node_cpu_seconds_total{ mode = \"idle\" } [1m] )) * 100)";
+	CPURangeQuery.Description = "CPURange";
+	CPURangeQuery.LineColor = FColor::Green;
+	//same name as LineChartWidget in editor
+	CPURangeQuery.LineChartWidgetRef = Cast<ULineChartWidget>(HUDWidget->GetWidgetFromName(TEXT("CPULineChart")));
+	RangeQueryList.Add(CPURangeQuery);
+	LineChartMap.Add(CPURangeQuery.Description, CPURangeQuery.LineChartWidgetRef);
 
 	GetWorld()->GetTimerManager().SetTimer(QueryTimerHandle, this, &APrometheusManager::UpdatePrometheus, 10.0f, true, 0.0f);
 	GetWorld()->GetTimerManager().SetTimer(RangeQueryTimerHandle, this, &APrometheusManager::UpdateRangeMetrics, 10.0f, true, 0.0f);

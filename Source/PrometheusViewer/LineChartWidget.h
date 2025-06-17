@@ -14,6 +14,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Chart")
     void SetChartData(const TArray<FVector2D>& InDataPoints);
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chart")
+	int32 UserTimezone;
 protected:
     virtual int32 NativePaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
         const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,

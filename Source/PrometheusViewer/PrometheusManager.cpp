@@ -111,7 +111,7 @@ void APrometheusManager::QueryPrometheus(const FPrometheusQueryInfo& Info)
 
 void APrometheusManager::QueryRangePrometheus(const FPrometheusRangeQueryInfo& Info)
 {
-	FString Start = FString::FromInt(FDateTime::UtcNow().ToUnixTimestamp() - 300); // 過去 5 分鐘
+	FString Start = FString::FromInt(FDateTime::UtcNow().ToUnixTimestamp() - 3600); // 過去 5 分鐘
 	FString End = FString::FromInt(FDateTime::UtcNow().ToUnixTimestamp());
 	FString Step = "10"; // 每 10 秒一筆
 
@@ -284,10 +284,10 @@ void APrometheusManager::OnQueryRangeResponse(FHttpRequestPtr Request, FHttpResp
 					FoundLineChartRef->Get()->SetChartData(ConvertedData);
 				}
 
-				for (const FVector2D& Point : ConvertedData)
+				/*for (const FVector2D& Point : ConvertedData)
 				{
 					UE_LOG(LogTemp, Log, TEXT("Merged Time: %f, Avg Value: %f"), Point.X, Point.Y);
-				}
+				}*/
 			}
 		}
 	}

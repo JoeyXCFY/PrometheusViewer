@@ -16,6 +16,18 @@ void ULineChartWidget::SetChartData(const TArray<FVector2D>& InDataPoints)
     }
 }
 
+FReply ULineChartWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
+{
+    bMouseHovered = true;
+    CachedMousePosition = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
+    return FReply::Handled();
+}
+
+void ULineChartWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
+{
+    bMouseHovered = false;
+}
+
 int32 ULineChartWidget::NativePaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
     const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements,
     int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
@@ -170,6 +182,56 @@ int32 ULineChartWidget::NativePaint(const FPaintArgs& Args, const FGeometry& All
         FSlateDrawElement::MakeLines(OutDrawElements, LayerId,
             AllottedGeometry.ToPaintGeometry(), { Start, End },
             ESlateDrawEffect::None, FLinearColor::Green, true, 2.0f);
+    }
+
+    if (bMouseHovered && RelativeDataPoints.Num() > 0)
+    {
+        float MouseX = CachedMousePosition.X;
+
+        float ClosestDistance = FLT_MAX;
+        FVector2D ClosestPointCanvas = FVector2D::ZeroVector;
+        bool bFoundPoint = false;
+        FString TooltipText;
+
+        for (const FVector2D& Point : RelativeDataPoints)
+        {
+            float X = PlotOrigin.X + ((Point.X - MinX) / RangeX) * PlotSize.X;
+            float Y = PlotOrigin.Y + (1.0f - (Point.Y - MinY) / RangeY) * PlotSize.Y;
+
+            float Dist = FMath::Abs(MouseX - X);
+            if (Dist < ClosestDistance)
+            {
+                ClosestDistance = Dist;
+                ClosestPointCanvas = FVector2D(X, Y);
+                bFoundPoint = true;
+
+                int64 Timestamp = static_cast<int64>(Point.X + BaseTime);
+                FDateTime LocalTime = FDateTime::FromUnixTimestamp(Timestamp) + (FDateTime::Now() - FDateTime::UtcNow());
+
+                TooltipText = FString::Printf(TEXT("Time: %s\nValue: %.2f"),
+                    *LocalTime.ToString(TEXT("%H:%M:%S")),
+                    Point.Y);
+            }
+        }
+
+        if (bFoundPoint)
+        {
+            // 畫小圓點
+            FSlateDrawElement::MakeBox(OutDrawElements, LayerId,
+                AllottedGeometry.ToPaintGeometry(ClosestPointCanvas - FVector2D(2, 2), FVector2D(4, 4)),
+                FCoreStyle::Get().GetBrush("WhiteBrush"),
+                ESlateDrawEffect::None,
+                FLinearColor::Yellow);
+
+            // 顯示提示文字
+            FVector2D TextPos = ClosestPointCanvas + FVector2D(10, -30);
+            FSlateDrawElement::MakeText(OutDrawElements, LayerId + 1,
+                AllottedGeometry.ToPaintGeometry(TextPos, FVector2D(120, 32)),
+                FText::FromString(TooltipText),
+                FontInfo,
+                ESlateDrawEffect::None,
+                FLinearColor::Yellow);
+        }
     }
 
     return LayerId + 1;

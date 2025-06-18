@@ -36,6 +36,16 @@ void APrometheusManager::BeginPlay()
 
 	}
 
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (PC)
+	{
+		FInputModeUIOnly InputMode;
+		InputMode.SetWidgetToFocus(HUDWidget->TakeWidget()); // 若你想專注到某個 widget
+		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+		PC->SetInputMode(InputMode);
+		PC->bShowMouseCursor = true;
+	}
+
 	FPrometheusQueryInfo MemoryQuery;
 	MemoryQuery.PromQL = "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100";
 	MemoryQuery.Description = "Memory";

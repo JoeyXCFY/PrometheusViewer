@@ -13,18 +13,26 @@
 #include "Http.h"
 #include "LineChartWidget.h"
 #include "Math/Vector2D.h"
+#include "MonitoringItemWidget.h"
+#include "DashboardWidget.h"
 
 APrometheusManager::APrometheusManager()
 {
 	PrimaryActorTick.bCanEverTick = false;
 }
 
+void APrometheusManager::AddDynamicQuery(const FPrometheusQueryInfo& Info)
+{
+	QueryList.Add(Info);
+	QueryTextMap.Add(Info.Description, Info.UITextRef);
+}
+
 void APrometheusManager::BeginPlay()
 {
 	Super::BeginPlay();
-	Target_IP = "172.16.100.19";
-	Account = "admin";
-	Password = "admin";
+
+
+	FetchAllMetricNames();
 
 	if (WidgetClass)
 	{
@@ -40,13 +48,13 @@ void APrometheusManager::BeginPlay()
 	if (PC)
 	{
 		FInputModeUIOnly InputMode;
-		InputMode.SetWidgetToFocus(HUDWidget->TakeWidget()); // 若你想專注到某個 widget
+		InputMode.SetWidgetToFocus(HUDWidget->TakeWidget()); 
 		InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
 		PC->SetInputMode(InputMode);
 		PC->bShowMouseCursor = true;
 	}
 
-	FPrometheusQueryInfo MemoryQuery;
+	/*FPrometheusQueryInfo MemoryQuery;
 	MemoryQuery.PromQL = "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100";
 	MemoryQuery.Description = "Memory";
 	MemoryQuery.UITextRef = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("MemoryUsage")));
@@ -54,7 +62,7 @@ void APrometheusManager::BeginPlay()
 	QueryTextMap.Add(MemoryQuery.Description, MemoryQuery.UITextRef);
 
 	FPrometheusQueryInfo CPUQuery;
-	CPUQuery.PromQL = "100 - (avg by(instance)(rate(node_cpu_seconds_total{ mode = \"idle\" } [1m] )) * 100)";
+	CPUQuery.PromQL = "sum by (instance) (rate(node_cpu_seconds_total{mode!=\"idle\"}[1m])) * 100";
 	CPUQuery.Description = "CPU";
 	CPUQuery.UITextRef = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("CPUUsage")));
 	QueryList.Add(CPUQuery);
@@ -64,19 +72,17 @@ void APrometheusManager::BeginPlay()
 	MemoryRangeQuery.PromQL = "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100";
 	MemoryRangeQuery.Description = "MemoryRange";
 	MemoryRangeQuery.LineColor = FColor::Green;
-	//same name as LineChartWidget in editor
 	MemoryRangeQuery.LineChartWidgetRef = Cast<ULineChartWidget>(HUDWidget->GetWidgetFromName(TEXT("MemoryLineChart")));
 	RangeQueryList.Add(MemoryRangeQuery);
 	LineChartMap.Add(MemoryRangeQuery.Description, MemoryRangeQuery.LineChartWidgetRef);
 
 	FPrometheusRangeQueryInfo CPURangeQuery;
-	CPURangeQuery.PromQL = "100 - (avg by(instance)(rate(node_cpu_seconds_total{ mode = \"idle\" } [1m] )) * 100)";
+	CPURangeQuery.PromQL = "sum by (instance) (rate(node_cpu_seconds_total{mode!=\"idle\"}[1m])) * 100";
 	CPURangeQuery.Description = "CPURange";
 	CPURangeQuery.LineColor = FColor::Green;
-	//same name as LineChartWidget in editor
 	CPURangeQuery.LineChartWidgetRef = Cast<ULineChartWidget>(HUDWidget->GetWidgetFromName(TEXT("CPULineChart")));
 	RangeQueryList.Add(CPURangeQuery);
-	LineChartMap.Add(CPURangeQuery.Description, CPURangeQuery.LineChartWidgetRef);
+	LineChartMap.Add(CPURangeQuery.Description, CPURangeQuery.LineChartWidgetRef);*/
 
 	GetWorld()->GetTimerManager().SetTimer(QueryTimerHandle, this, &APrometheusManager::UpdatePrometheus, 10.0f, true, 0.0f);
 	GetWorld()->GetTimerManager().SetTimer(RangeQueryTimerHandle, this, &APrometheusManager::UpdateRangeMetrics, 10.0f, true, 0.0f);
@@ -97,6 +103,19 @@ void APrometheusManager::UpdateRangeMetrics()
 	{
 		QueryRangePrometheus(Info);
 	}
+}
+
+void APrometheusManager::FetchAllMetricNames()
+{
+    FString URL = FString::Printf(TEXT("http://%s:9090/api/v1/label/__name__/values"), *Target_IP);
+
+    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+    Request->SetURL(URL);
+    Request->SetVerb("GET");
+    Request->SetHeader("Content-Type", "application/json");
+    Request->SetHeader("Authorization", "Basic " + FBase64::Encode(Account + ":" + Password));
+    Request->OnProcessRequestComplete().BindUObject(this, &APrometheusManager::OnReceiveMetricList);
+    Request->ProcessRequest();
 }
 
 void APrometheusManager::QueryPrometheus(const FPrometheusQueryInfo& Info)
@@ -141,6 +160,36 @@ void APrometheusManager::QueryRangePrometheus(const FPrometheusRangeQueryInfo& I
 
 	Request->OnProcessRequestComplete().BindUObject(this, &APrometheusManager::OnQueryRangeResponse);
 	Request->ProcessRequest();
+}
+
+void APrometheusManager::OnReceiveMetricList(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
+{
+	if (!bWasSuccessful || !Response.IsValid())
+	{
+		UE_LOG(LogTemp, Error, TEXT("Failed to fetch metric names."));
+		return;
+	}
+
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
+
+	if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
+	{
+		const TArray<TSharedPtr<FJsonValue>>* MetricNames;
+		if (JsonObject->TryGetArrayField("data", MetricNames))
+		{
+			MetricNameList.Empty();
+
+			for (const TSharedPtr<FJsonValue>& Value : *MetricNames)
+			{
+				FString Metric = Value->AsString();
+				MetricNameList.Add(Metric);
+				//UE_LOG(LogTemp, Log, TEXT("Found Metric: %s"), *Metric);
+			}
+
+			// UpdateMetricComboBox(MetricNameList);
+		}
+	}
 }
 
 void APrometheusManager::OnPrometheusResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)

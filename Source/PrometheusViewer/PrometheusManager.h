@@ -13,6 +13,16 @@ class UUserWidget;
 class UTextBlock;
 class ULineChartWidget;
 
+USTRUCT()
+struct FMonitoringRequest
+{
+	GENERATED_BODY()
+
+	FString MetricName;
+	FString DisplayType; // "Raw" 或 "Usage%"
+	class UMonitoringItemWidget* WidgetRef;
+};
+
 USTRUCT(BlueprintType)
 struct FDataPoint
 {
@@ -97,11 +107,20 @@ public:
 	void UpdateRangeMetrics();
 	void OnQueryRangeResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 	void QueryRangePrometheus(const FPrometheusRangeQueryInfo& Info);
+	void FetchAllMetricNames();
+	void OnReceiveMetricList(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 	FTimerHandle QueryTimerHandle;
 	FTimerHandle RangeQueryTimerHandle;
 
 	UPROPERTY()
+	TArray<FString> MetricNameList;
+
+	UPROPERTY()
 	ULineChartWidget* LineChartWidget;
+
+	void AddDynamicQuery(const FPrometheusQueryInfo& Info);
+
 protected:
 	virtual void BeginPlay() override;
+	TArray<FMonitoringRequest> PendingMonitoringRequests;
 };

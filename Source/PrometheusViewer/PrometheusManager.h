@@ -7,11 +7,14 @@
 #include "Http.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Interfaces/IHttpResponse.h"
+#include "Delegates/DelegateCombinations.h"
 #include "PrometheusManager.generated.h"
+
 
 class UUserWidget;
 class UTextBlock;
 class ULineChartWidget;
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPrometheusQueryResponse, const FString&, PromQL, const FString&, Result);
 
 USTRUCT()
 struct FMonitoringRequest
@@ -75,6 +78,8 @@ struct FPrometheusRangeQueryInfo
 	ULineChartWidget* LineChartWidgetRef;
 };
 
+
+
 UCLASS()
 class PROMETHEUSVIEWER_API APrometheusManager : public AActor
 {
@@ -111,6 +116,10 @@ public:
 	void OnReceiveMetricList(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 	FTimerHandle QueryTimerHandle;
 	FTimerHandle RangeQueryTimerHandle;
+	void HandleQuery(const FString& PromQL);
+
+	UPROPERTY(BlueprintAssignable)
+	FOnPrometheusQueryResponse OnQueryResponse;
 
 	UPROPERTY()
 	TArray<FString> MetricNameList;

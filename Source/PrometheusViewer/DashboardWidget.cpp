@@ -24,6 +24,13 @@ void UDashboardWidget::NativeConstruct()
         ManagerRef = *It;
         break;
     }
+
+    if (ManagerRef)
+    {
+        ManagerRef->OnQueryResponse.RemoveDynamic(this, &UDashboardWidget::OnQueryResponseReceived);
+        ManagerRef->OnQueryResponse.AddDynamic(this, &UDashboardWidget::OnQueryResponseReceived);
+    }
+    UE_LOG(LogTemp, Warning, TEXT("ManagerRef valid: %s"), ManagerRef ? TEXT("Yes") : TEXT("No"));
 }
 
 void UDashboardWidget::OnAddMonitorClicked()
@@ -33,6 +40,7 @@ void UDashboardWidget::OnAddMonitorClicked()
     if (MonitoringItemWidgetClass)
     {
         UMonitoringItemWidget* NewItem = CreateWidget<UMonitoringItemWidget>(GetWorld(), MonitoringItemWidgetClass);
+
         if (NewItem)
         {
             UE_LOG(LogTemp, Warning, TEXT("MonitoringItemWidget Added to MonitorListBox"));
@@ -43,6 +51,7 @@ void UDashboardWidget::OnAddMonitorClicked()
 
             NewItem->OnPromQueryGenerated.RemoveDynamic(this, &UDashboardWidget::HandleDynamicPromQL);
             NewItem->OnPromQueryGenerated.AddDynamic(this, &UDashboardWidget::HandleDynamicPromQL);
+
         }
         else
         {
@@ -55,14 +64,30 @@ void UDashboardWidget::OnAddMonitorClicked()
     }
 }
 
-void UDashboardWidget::HandleDynamicPromQL(const FString& PromQL, UWidget* UIWidget)
+void UDashboardWidget::HandleDynamicPromQL(const FString& PromQL, UMonitoringItemWidget* UIWidget)
 {
     if (ManagerRef && UIWidget)
     {
         FPrometheusQueryInfo Info;
         Info.PromQL = PromQL;
         Info.Description = "Dynamic";
-        Info.UITextRef = Cast<UTextBlock>(UIWidget);
+        Info.UITextRef = UIWidget->GetResultTextBlock();
         ManagerRef->AddDynamicQuery(Info);
+
+		UIWidget->TriggerQuery(ManagerRef);
+    }
+}
+
+void UDashboardWidget::OnQueryResponseReceived(const FString& PromQL, const FString& Result)
+{
+    UE_LOG(LogTemp, Warning, TEXT("[OnQueryResponseReceived] PromQL: %s, Result: %s"), *PromQL, *Result);
+
+    // 遍歷 ScrollBox 中的所有子 Widget
+    for (UWidget* Child : MonitorListBox->GetAllChildren())
+    {
+        if (UMonitoringItemWidget* Item = Cast<UMonitoringItemWidget>(Child))
+        {
+            Item->OnQueryResponseReceived(PromQL, Result);
+        }
     }
 }

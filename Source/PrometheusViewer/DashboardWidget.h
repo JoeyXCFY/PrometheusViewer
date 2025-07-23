@@ -25,10 +25,15 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
     TSubclassOf<UMonitoringItemWidget> MonitoringItemWidgetClass;
 
+ 
+
     UFUNCTION()
-    void HandleDynamicPromQL(const FString& PromQL, UWidget* UIWidget);
+    void HandleDynamicPromQL(const FString& PromQL, UMonitoringItemWidget* UIWidget);
 
     class APrometheusManager* ManagerRef = nullptr;
 
     virtual void NativeConstruct() override;
+
+    UFUNCTION()
+    void OnQueryResponseReceived(const FString& PromQL, const FString& Result);
 };

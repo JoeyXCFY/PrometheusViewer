@@ -54,7 +54,7 @@ void APrometheusManager::BeginPlay()
 		PC->bShowMouseCursor = true;
 	}
 
-	/*FPrometheusQueryInfo MemoryQuery;
+	FPrometheusQueryInfo MemoryQuery;
 	MemoryQuery.PromQL = "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100";
 	MemoryQuery.Description = "Memory";
 	MemoryQuery.UITextRef = Cast<UTextBlock>(HUDWidget->GetWidgetFromName(TEXT("MemoryUsage")));
@@ -82,10 +82,10 @@ void APrometheusManager::BeginPlay()
 	CPURangeQuery.LineColor = FColor::Green;
 	CPURangeQuery.LineChartWidgetRef = Cast<ULineChartWidget>(HUDWidget->GetWidgetFromName(TEXT("CPULineChart")));
 	RangeQueryList.Add(CPURangeQuery);
-	LineChartMap.Add(CPURangeQuery.Description, CPURangeQuery.LineChartWidgetRef);*/
+	LineChartMap.Add(CPURangeQuery.Description, CPURangeQuery.LineChartWidgetRef);
 
-	GetWorld()->GetTimerManager().SetTimer(QueryTimerHandle, this, &APrometheusManager::UpdatePrometheus, 10.0f, true, 0.0f);
-	GetWorld()->GetTimerManager().SetTimer(RangeQueryTimerHandle, this, &APrometheusManager::UpdateRangeMetrics, 10.0f, true, 0.0f);
+	//GetWorld()->GetTimerManager().SetTimer(QueryTimerHandle, this, &APrometheusManager::UpdatePrometheus, 10.0f, true, 0.0f);
+	//GetWorld()->GetTimerManager().SetTimer(RangeQueryTimerHandle, this, &APrometheusManager::UpdateRangeMetrics, 10.0f, true, 0.0f);
 }
 
 
@@ -103,6 +103,59 @@ void APrometheusManager::UpdateRangeMetrics()
 	{
 		QueryRangePrometheus(Info);
 	}
+}
+
+void APrometheusManager::HandleQuery(const FString& PromQL)
+{
+	FString Encoded = FGenericPlatformHttp::UrlEncode(PromQL);
+	FString URL = FString::Printf(TEXT("http://%s:9090/api/v1/query?query=%s"), *Target_IP, *Encoded);
+
+	TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+	Request->SetURL(URL);
+	Request->SetVerb(TEXT("GET"));
+	Request->SetHeader(TEXT("Authorization"), "Basic " + FBase64::Encode(Account + ":" + Password));
+	Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+	Request->SetHeader(TEXT("PromQL"), PromQL); // 紀錄 PromQL 傳回時對應
+
+	Request->OnProcessRequestComplete().BindLambda(
+		[this](FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSuccess)
+		{
+			//檢查HTTP狀態碼
+			if (Resp.IsValid())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("HTTP Status Code: %d"), Resp->GetResponseCode());
+			}
+			FString ResultValue = TEXT("N/A");
+			FString PromQL = Req->GetHeader(TEXT("PromQL"));
+
+			if (bSuccess && Resp.IsValid())
+			{
+				TSharedPtr<FJsonObject> Json;
+				TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
+
+				if (FJsonSerializer::Deserialize(Reader, Json))
+				{
+					const TArray<TSharedPtr<FJsonValue>>* ResultArray;
+					if (Json->GetObjectField("data")->TryGetArrayField("result", ResultArray) && ResultArray->Num() > 0)
+					{
+						const TSharedPtr<FJsonObject>* First;
+						if ((*ResultArray)[0]->TryGetObject(First))
+						{
+							const TArray<TSharedPtr<FJsonValue>>* ValueArray;
+							if ((*First)->TryGetArrayField("value", ValueArray) && ValueArray->Num() > 1)
+							{
+								ResultValue = (*ValueArray)[1]->AsString();
+							}
+						}
+					}
+				}
+			}
+			// 廣播結果讓外部處理
+			OnQueryResponse.Broadcast(PromQL, ResultValue);
+		}
+	);
+
+	Request->ProcessRequest();
 }
 
 void APrometheusManager::FetchAllMetricNames()

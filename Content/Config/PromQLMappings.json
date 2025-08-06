@@ -1,0 +1,38 @@
+{
+  "node_cpu_seconds_total": {
+    "Raw": "node_cpu_seconds_total",
+    "Usage%": "sum by (instance) (rate(node_cpu_seconds_total{mode!=\"idle\"}[1m])) * 100"
+  },
+  "node_memory_MemAvailable_bytes": {
+    "Raw": "node_memory_MemAvailable_bytes",
+    "Usage%": "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100"
+  },
+  "node_memory_MemTotal_bytes": {
+    "Raw": "node_memory_MemTotal_bytes"
+  },
+  "node_network_receive_bytes_total": {
+    "Raw": "node_network_receive_bytes_total",
+    "Usage%": "sum by (instance) (rate(node_network_receive_bytes_total[1m]))"
+  },
+  "node_network_transmit_bytes_total": {
+    "Raw": "node_network_transmit_bytes_total",
+    "Usage%": "sum by (instance) (rate(node_network_transmit_bytes_total[1m]))"
+  },
+  "node_disk_read_bytes_total": {
+    "Raw": "node_disk_read_bytes_total",
+    "Usage%": "sum by (instance) (rate(node_disk_read_bytes_total[1m]))"
+  },
+  "node_disk_written_bytes_total": {
+    "Raw": "node_disk_written_bytes_total",
+    "Usage%": "sum by (instance) (rate(node_disk_written_bytes_total[1m]))"
+  },
+  "node_load1": {
+    "Raw": "node_load1"
+  },
+  "node_load5": {
+    "Raw": "node_load5"
+  },
+  "node_load15": {
+    "Raw": "node_load15"
+  }
+}

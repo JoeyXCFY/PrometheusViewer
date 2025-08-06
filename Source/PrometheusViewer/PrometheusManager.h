@@ -1,6 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
 #pragma once
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -15,6 +12,23 @@ class UUserWidget;
 class UTextBlock;
 class ULineChartWidget;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPrometheusQueryResponse, const FString&, PromQL, const FString&, Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMetricsFetchedDelegate, const TArray<FString>&, Metrics);
+
+
+USTRUCT(BlueprintType)
+struct FPromQLMapping
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString Metric;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString Type;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FString PromQL;
+};
 
 USTRUCT()
 struct FMonitoringRequest
@@ -112,8 +126,8 @@ public:
 	void UpdateRangeMetrics();
 	void OnQueryRangeResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 	void QueryRangePrometheus(const FPrometheusRangeQueryInfo& Info);
-	void FetchAllMetricNames();
-	void OnReceiveMetricList(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
+	void FetchAvailableMetrics();
+
 	FTimerHandle QueryTimerHandle;
 	FTimerHandle RangeQueryTimerHandle;
 	void HandleQuery(const FString& PromQL);
@@ -121,13 +135,25 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnPrometheusQueryResponse OnQueryResponse;
 
+	UPROPERTY(BlueprintAssignable, Category = "Prometheus")
+	FMetricsFetchedDelegate OnMetricsFetched;
+
 	UPROPERTY()
 	TArray<FString> MetricNameList;
 
 	UPROPERTY()
 	ULineChartWidget* LineChartWidget;
 
+	UPROPERTY(EditDefaultsOnly, Category = "Prometheus")
+	UDataTable* PromQLMappingTable;
+
 	void AddDynamicQuery(const FPrometheusQueryInfo& Info);
+
+	TMap<FString, TMap<FString, FString>> PromQLMappings;
+
+	void LoadPromQLMappings();
+
+	FString GetPromQLFromMapping(const FString& Metric, const FString& Type) const;
 
 protected:
 	virtual void BeginPlay() override;

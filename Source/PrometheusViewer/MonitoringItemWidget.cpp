@@ -7,21 +7,34 @@
 #include "Components/TextBlock.h"
 #include "LineChartWidget.h"
 
-void UMonitoringItemWidget::InitializeOptions(const TArray<FString>& Metrics)
+void UMonitoringItemWidget::InitializeOptions(APrometheusManager* Manager)
 {
-    MetricComboBox->ClearOptions();
-    for (const FString& M : Metrics) MetricComboBox->AddOption(M);
-    MetricComboBox->OnSelectionChanged.AddDynamic(this, &UMonitoringItemWidget::OnMetricChanged);
+	this->ManagerRef = Manager;
+    if (!Manager) return;
 
+    Manager->OnMetricsFetched.AddDynamic(this, &UMonitoringItemWidget::OnMetricsReady);
+    Manager->FetchAvailableMetrics(); // 啟動抓取
     TypeComboBox->ClearOptions();
     TypeComboBox->AddOption("Raw");
     TypeComboBox->AddOption("Usage%");
     TypeComboBox->OnSelectionChanged.AddDynamic(this, &UMonitoringItemWidget::OnTypeChanged);
+    MetricComboBox->OnSelectionChanged.AddDynamic(this, &UMonitoringItemWidget::OnMetricChanged);
+}
+
+
+void UMonitoringItemWidget::OnMetricsReady(const TArray<FString>& Metrics)
+{
+    MetricComboBox->ClearOptions();
+    for (const FString& M : Metrics)
+    {
+        MetricComboBox->AddOption(M);
+    }
 }
 
 void UMonitoringItemWidget::OnMetricChanged(FString Selected, ESelectInfo::Type)
 {
     SelectedMetric = Selected;
+    UE_LOG(LogTemp, Warning, TEXT("[ComboBox] Metric changed: %s"), *Selected);
 
     if (!SelectedType.IsEmpty())
     {
@@ -41,28 +54,17 @@ void UMonitoringItemWidget::OnTypeChanged(FString Selected, ESelectInfo::Type)
     }
 }
 
-
 FString UMonitoringItemWidget::GeneratePromQL(const FString& Metric, const FString& Type) const
 {
-    if (Metric.IsEmpty() || Type.IsEmpty())
+    FString Result = ManagerRef->GetPromQLFromMapping(Metric, Type);
+    UE_LOG(LogTemp, Warning, TEXT("[PromQL Generate] Metric: %s, Type: %s, Result: %s"), *Metric, *Type, *Result);
+    if (!ManagerRef) {
+        
         return "";
-
-    if (Type == "Raw")
-    {
-        return Metric;
-    }
-    else if (Type == "Usage%" && Metric.Contains("cpu"))
-    {
-        return FString::Printf(TEXT("sum by (instance) (rate(%s{mode!=\"idle\"}[1m])) * 100"), *Metric);
-    }
-    else if (Type == "Usage%" && Metric.Contains("memory"))
-    {
-        return TEXT("(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100");
     }
 
-    // 可選：額外處理無法對應的情況
-    UE_LOG(LogTemp, Warning, TEXT("Unknown PromQL mapping for Metric: %s, Type: %s"), *Metric, *Type);
-    return "";
+    return ManagerRef->GetPromQLFromMapping(Metric, Type);
+
 }
 
 void UMonitoringItemWidget::TriggerQuery(APrometheusManager* Manager)
@@ -71,15 +73,14 @@ void UMonitoringItemWidget::TriggerQuery(APrometheusManager* Manager)
 
     LastSentPromQL = GeneratePromQL(SelectedMetric, SelectedType);
 
-    // 綁定事件（建議在 Widget 建立時只綁一次）
     Manager->OnQueryResponse.AddDynamic(this, &UMonitoringItemWidget::OnQueryResponseReceived);
     Manager->HandleQuery(LastSentPromQL);
 }
 
-
 void UMonitoringItemWidget::OnQueryResponseReceived(const FString& PromQL, const FString& Result)
 {
     UE_LOG(LogTemp, Warning, TEXT("Widget OnQueryResponseReceived - MyLast: %s | Incoming: %s"), *LastSentPromQL, *PromQL);
+    UE_LOG(LogTemp, Warning, TEXT("[QueryResult] PromQL: %s => Result: %s"), *PromQL, *Result);
 
     if (!ResultText)
     {
@@ -92,4 +93,5 @@ void UMonitoringItemWidget::OnQueryResponseReceived(const FString& PromQL, const
         FString FormattedResult = FString::Printf(TEXT("%.3f"), FloatValue);
         ResultText->SetText(FText::FromString(FormattedResult));
     }
+
 }

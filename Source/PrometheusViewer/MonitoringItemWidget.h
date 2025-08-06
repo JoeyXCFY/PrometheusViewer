@@ -24,7 +24,10 @@ public:
     UFUNCTION()
     void OnTypeChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
 
-    void InitializeOptions(const TArray<FString>& Metrics);
+    void InitializeOptions(APrometheusManager* Manager);
+
+    UFUNCTION()
+    void OnMetricsReady(const TArray<FString>& Metrics);
 
     FString SelectedMetric;
     FString SelectedType;
@@ -46,4 +49,6 @@ public:
 
     UFUNCTION()
     void OnQueryResponseReceived(const FString& PromQL, const FString& Result);
+protected:
+    APrometheusManager* ManagerRef;
 };

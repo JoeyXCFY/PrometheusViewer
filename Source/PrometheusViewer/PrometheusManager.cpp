@@ -31,9 +31,6 @@ void APrometheusManager::BeginPlay()
 {
 	Super::BeginPlay();
 
-
-	FetchAllMetricNames();
-
 	if (WidgetClass)
 	{
 		HUDWidget = CreateWidget<UUserWidget>(GetWorld(), WidgetClass);
@@ -53,6 +50,8 @@ void APrometheusManager::BeginPlay()
 		PC->SetInputMode(InputMode);
 		PC->bShowMouseCursor = true;
 	}
+
+	LoadPromQLMappings();
 
 	FPrometheusQueryInfo MemoryQuery;
 	MemoryQuery.PromQL = "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100";
@@ -156,19 +155,48 @@ void APrometheusManager::HandleQuery(const FString& PromQL)
 	);
 
 	Request->ProcessRequest();
+	UE_LOG(LogTemp, Warning, TEXT("[HandleQuery] Executing PromQL: %s"), *PromQL);
 }
 
-void APrometheusManager::FetchAllMetricNames()
+void APrometheusManager::FetchAvailableMetrics()
 {
-    FString URL = FString::Printf(TEXT("http://%s:9090/api/v1/label/__name__/values"), *Target_IP);
+	FString URL = FString::Printf(TEXT("http://%s:9090/api/v1/label/__name__/values"), *Target_IP);
 
-    TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
-    Request->SetURL(URL);
-    Request->SetVerb("GET");
-    Request->SetHeader("Content-Type", "application/json");
-    Request->SetHeader("Authorization", "Basic " + FBase64::Encode(Account + ":" + Password));
-    Request->OnProcessRequestComplete().BindUObject(this, &APrometheusManager::OnReceiveMetricList);
-    Request->ProcessRequest();
+	TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
+	Request->SetURL(URL);
+	Request->SetVerb(TEXT("GET"));
+	Request->SetHeader(TEXT("Authorization"), "Basic " + FBase64::Encode(Account + ":" + Password));
+	Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+
+	Request->OnProcessRequestComplete().BindLambda(
+		[this](FHttpRequestPtr Req, FHttpResponsePtr Resp, bool bSuccess)
+		{
+			TArray<FString> Metrics;
+
+			if (bSuccess && Resp.IsValid())
+			{
+				TSharedPtr<FJsonObject> Json;
+				TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Resp->GetContentAsString());
+
+				if (FJsonSerializer::Deserialize(Reader, Json))
+				{
+					const TArray<TSharedPtr<FJsonValue>>* DataArray;
+					if (Json->TryGetArrayField("data", DataArray))
+					{
+						for (const TSharedPtr<FJsonValue>& Value : *DataArray)
+						{
+							Metrics.Add(Value->AsString());
+						}
+					}
+				}
+			}
+
+			// 呼叫廣播事件或回傳資料
+			OnMetricsFetched.Broadcast(Metrics);
+		}
+	);
+
+	Request->ProcessRequest();
 }
 
 void APrometheusManager::QueryPrometheus(const FPrometheusQueryInfo& Info)
@@ -215,35 +243,6 @@ void APrometheusManager::QueryRangePrometheus(const FPrometheusRangeQueryInfo& I
 	Request->ProcessRequest();
 }
 
-void APrometheusManager::OnReceiveMetricList(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
-{
-	if (!bWasSuccessful || !Response.IsValid())
-	{
-		UE_LOG(LogTemp, Error, TEXT("Failed to fetch metric names."));
-		return;
-	}
-
-	TSharedPtr<FJsonObject> JsonObject;
-	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
-
-	if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
-	{
-		const TArray<TSharedPtr<FJsonValue>>* MetricNames;
-		if (JsonObject->TryGetArrayField("data", MetricNames))
-		{
-			MetricNameList.Empty();
-
-			for (const TSharedPtr<FJsonValue>& Value : *MetricNames)
-			{
-				FString Metric = Value->AsString();
-				MetricNameList.Add(Metric);
-				//UE_LOG(LogTemp, Log, TEXT("Found Metric: %s"), *Metric);
-			}
-
-			// UpdateMetricComboBox(MetricNameList);
-		}
-	}
-}
 
 void APrometheusManager::OnPrometheusResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
 {
@@ -407,4 +406,45 @@ void APrometheusManager::OnQueryRangeResponse(FHttpRequestPtr Request, FHttpResp
 	{
 		UE_LOG(LogTemp, Error, TEXT("Failed to parse JSON response"));
 	}
+}
+
+
+void APrometheusManager::LoadPromQLMappings()
+{
+	FString JsonPath = FPaths::ProjectContentDir() / TEXT("Config/PromQLMappings.json");
+	FString JsonContent;
+	if (FFileHelper::LoadFileToString(JsonContent, *JsonPath))
+	{
+		TSharedPtr<FJsonObject> Root;
+		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonContent);
+
+		if (FJsonSerializer::Deserialize(Reader, Root) && Root.IsValid())
+		{
+			for (auto& MetricPair : Root->Values)
+			{
+				FString Metric = MetricPair.Key;
+				TSharedPtr<FJsonObject> TypeMap = MetricPair.Value->AsObject();
+				TMap<FString, FString> InnerMap;
+
+				for (auto& TypePair : TypeMap->Values)
+				{
+					InnerMap.Add(TypePair.Key, TypePair.Value->AsString());
+				}
+				PromQLMappings.Add(Metric, InnerMap);
+			}
+		}
+	}
+}
+
+
+FString APrometheusManager::GetPromQLFromMapping(const FString& Metric, const FString& Type) const
+{
+	if (const TMap<FString, FString>* TypeMap = PromQLMappings.Find(Metric))
+	{
+		if (const FString* Query = TypeMap->Find(Type))
+		{
+			return *Query;
+		}
+	}
+	return ""; // 查無資料
 }

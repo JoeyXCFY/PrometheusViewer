@@ -45,9 +45,7 @@ void UDashboardWidget::OnAddMonitorClicked()
         {
             UE_LOG(LogTemp, Warning, TEXT("MonitoringItemWidget Added to MonitorListBox"));
             MonitorListBox->AddChild(NewItem);
-
-            TArray<FString> Metrics = { TEXT("node_cpu_seconds_total"), TEXT("node_memory_MemAvailable_bytes") };
-            NewItem->InitializeOptions(Metrics);
+            NewItem->InitializeOptions(ManagerRef);
 
             NewItem->OnPromQueryGenerated.RemoveDynamic(this, &UDashboardWidget::HandleDynamicPromQL);
             NewItem->OnPromQueryGenerated.AddDynamic(this, &UDashboardWidget::HandleDynamicPromQL);

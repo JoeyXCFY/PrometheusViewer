@@ -129,11 +129,13 @@ public:
 	void FetchAvailableMetrics();
 
 	FTimerHandle QueryTimerHandle;
-	FTimerHandle RangeQueryTimerHandle;
 	void HandleQuery(const FString& PromQL);
 
 	UPROPERTY(BlueprintAssignable)
 	FOnPrometheusQueryResponse OnQueryResponse;
+
+	TArray<FString> CachedMetrics;
+	bool bMetricsFetched = false;
 
 	UPROPERTY(BlueprintAssignable, Category = "Prometheus")
 	FMetricsFetchedDelegate OnMetricsFetched;
@@ -154,6 +156,18 @@ public:
 	void LoadPromQLMappings();
 
 	FString GetPromQLFromMapping(const FString& Metric, const FString& Type) const;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
+	float QueryInterval = 5.0f;
+
+	FTimerHandle AutoQueryTimer;
+
+	void ExecuteAutoQueries();
+
+	void RegisterQuery(const FString& PromQL);
+
+	UPROPERTY()
+	TArray<FString> RegisteredQueries; 
 
 protected:
 	virtual void BeginPlay() override;

@@ -9,25 +9,43 @@
 
 void UMonitoringItemWidget::InitializeOptions(APrometheusManager* Manager)
 {
-	this->ManagerRef = Manager;
+    this->ManagerRef = Manager;
     if (!Manager) return;
 
-    Manager->OnMetricsFetched.AddDynamic(this, &UMonitoringItemWidget::OnMetricsReady);
-    Manager->FetchAvailableMetrics(); // 啟動抓取
-    TypeComboBox->ClearOptions();
-    TypeComboBox->AddOption("Raw");
-    TypeComboBox->AddOption("Usage%");
-    TypeComboBox->OnSelectionChanged.AddDynamic(this, &UMonitoringItemWidget::OnTypeChanged);
-    MetricComboBox->OnSelectionChanged.AddDynamic(this, &UMonitoringItemWidget::OnMetricChanged);
+    if (!Manager->OnMetricsFetched.IsAlreadyBound(this, &UMonitoringItemWidget::OnMetricsReady))
+    {
+        Manager->OnMetricsFetched.AddDynamic(this, &UMonitoringItemWidget::OnMetricsReady);
+    }
+
+    if (!MetricComboBox->OnSelectionChanged.IsBound())
+    {
+        MetricComboBox->OnSelectionChanged.AddDynamic(this, &UMonitoringItemWidget::OnMetricChanged);
+    }
+    if (!TypeComboBox->OnSelectionChanged.IsBound())
+    {
+        TypeComboBox->OnSelectionChanged.AddDynamic(this, &UMonitoringItemWidget::OnTypeChanged);
+    }
+
+    if (TypeComboBox->GetOptionCount() == 0)
+    {
+        TypeComboBox->AddOption("Raw");
+        TypeComboBox->AddOption("Usage%");
+    }
+
+    Manager->FetchAvailableMetrics();
 }
 
 
 void UMonitoringItemWidget::OnMetricsReady(const TArray<FString>& Metrics)
 {
-    MetricComboBox->ClearOptions();
-    for (const FString& M : Metrics)
+    if (!bMetricsInitialized)
     {
-        MetricComboBox->AddOption(M);
+        MetricComboBox->ClearOptions();
+        for (const FString& M : Metrics)
+        {
+            MetricComboBox->AddOption(M);
+        }
+        bMetricsInitialized = true;
     }
 }
 
@@ -64,7 +82,6 @@ FString UMonitoringItemWidget::GeneratePromQL(const FString& Metric, const FStri
     }
 
     return ManagerRef->GetPromQLFromMapping(Metric, Type);
-
 }
 
 void UMonitoringItemWidget::TriggerQuery(APrometheusManager* Manager)
@@ -75,6 +92,7 @@ void UMonitoringItemWidget::TriggerQuery(APrometheusManager* Manager)
 
     Manager->OnQueryResponse.AddDynamic(this, &UMonitoringItemWidget::OnQueryResponseReceived);
     Manager->HandleQuery(LastSentPromQL);
+    Manager->RegisterQuery(LastSentPromQL);
 }
 
 void UMonitoringItemWidget::OnQueryResponseReceived(const FString& PromQL, const FString& Result)
@@ -93,5 +111,4 @@ void UMonitoringItemWidget::OnQueryResponseReceived(const FString& PromQL, const
         FString FormattedResult = FString::Printf(TEXT("%.3f"), FloatValue);
         ResultText->SetText(FText::FromString(FormattedResult));
     }
-
 }

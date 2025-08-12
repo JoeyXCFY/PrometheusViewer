@@ -49,6 +49,9 @@ public:
 
     UFUNCTION()
     void OnQueryResponseReceived(const FString& PromQL, const FString& Result);
+
+    UPROPERTY()
+    bool bMetricsInitialized = false;
 protected:
     APrometheusManager* ManagerRef;
 };

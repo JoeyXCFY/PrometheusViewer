@@ -85,6 +85,7 @@ void APrometheusManager::BeginPlay()
 
 	//GetWorld()->GetTimerManager().SetTimer(QueryTimerHandle, this, &APrometheusManager::UpdatePrometheus, 10.0f, true, 0.0f);
 	//GetWorld()->GetTimerManager().SetTimer(RangeQueryTimerHandle, this, &APrometheusManager::UpdateRangeMetrics, 10.0f, true, 0.0f);
+	GetWorld()->GetTimerManager().SetTimer(AutoQueryTimer, this, &APrometheusManager::ExecuteAutoQueries, 5.0f, true);
 }
 
 
@@ -160,6 +161,12 @@ void APrometheusManager::HandleQuery(const FString& PromQL)
 
 void APrometheusManager::FetchAvailableMetrics()
 {
+
+	if (bMetricsFetched)
+	{
+		OnMetricsFetched.Broadcast(CachedMetrics);
+		return;
+	}
 	FString URL = FString::Printf(TEXT("http://%s:9090/api/v1/label/__name__/values"), *Target_IP);
 
 	TSharedRef<IHttpRequest> Request = FHttpModule::Get().CreateRequest();
@@ -192,7 +199,9 @@ void APrometheusManager::FetchAvailableMetrics()
 			}
 
 			// 呼叫廣播事件或回傳資料
-			OnMetricsFetched.Broadcast(Metrics);
+			CachedMetrics = Metrics;
+			bMetricsFetched = true;
+			OnMetricsFetched.Broadcast(CachedMetrics);
 		}
 	);
 
@@ -447,4 +456,20 @@ FString APrometheusManager::GetPromQLFromMapping(const FString& Metric, const FS
 		}
 	}
 	return ""; // 查無資料
+}
+
+void APrometheusManager::ExecuteAutoQueries()
+{
+	for (const FString& Query : RegisteredQueries)
+	{
+		HandleQuery(Query); // 你原本的查詢函式
+	}
+}
+
+void APrometheusManager::RegisterQuery(const FString& PromQL)
+{
+	if (!RegisteredQueries.Contains(PromQL))
+	{
+		RegisteredQueries.Add(PromQL);
+	}
 }

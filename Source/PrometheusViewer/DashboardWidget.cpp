@@ -49,7 +49,6 @@ void UDashboardWidget::OnAddMonitorClicked()
 
             NewItem->OnPromQueryGenerated.RemoveDynamic(this, &UDashboardWidget::HandleDynamicPromQL);
             NewItem->OnPromQueryGenerated.AddDynamic(this, &UDashboardWidget::HandleDynamicPromQL);
-
         }
         else
         {

@@ -463,6 +463,7 @@ void APrometheusManager::ExecuteAutoQueries()
 	for (const FString& Query : RegisteredQueries)
 	{
 		HandleQuery(Query); // 你原本的查詢函式
+		HandleRangeQuery(Query, 300.f, 5.f);
 	}
 }
 
@@ -472,4 +473,96 @@ void APrometheusManager::RegisterQuery(const FString& PromQL)
 	{
 		RegisteredQueries.Add(PromQL);
 	}
+}
+
+void APrometheusManager::HandleRangeQuery(const FString& PromQL, float RangeSeconds, float StepSeconds)
+{
+	// 準備 URL
+	FString Start = FString::FromInt(FDateTime::UtcNow().ToUnixTimestamp() - RangeSeconds); // 過去 5 分鐘
+	FString End = FString::FromInt(FDateTime::UtcNow().ToUnixTimestamp());
+	FString StepStr = FString::SanitizeFloat(StepSeconds, 0);
+
+	FString Url = FString::Printf(TEXT("http://%s:9090/api/v1/query_range?query=%s&start=%s&end=%s&step=%s"),
+		*Target_IP,
+		*FGenericPlatformHttp::UrlEncode(PromQL),
+		*Start,
+		*End,
+		*StepStr);
+
+	UE_LOG(LogTemp, Warning, TEXT("[PrometheusManager] RangeQuery URL = %s"), *Url);
+	UE_LOG(LogTemp, Warning, TEXT("UE Now: %s"), *FDateTime::UtcNow().ToString());
+	UE_LOG(LogTemp, Warning, TEXT("UE Now Unix: %lld"), FDateTime::UtcNow().ToUnixTimestamp());
+
+
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+	Request->OnProcessRequestComplete().BindLambda(
+		[this, PromQL](FHttpRequestPtr Req, FHttpResponsePtr Response, bool bConnectedSuccessfully)
+		{
+			if (!Response.IsValid() || !EHttpResponseCodes::IsOk(Response->GetResponseCode()))
+			{
+				UE_LOG(LogTemp, Error, TEXT("[PrometheusManager] RangeQuery failed: %s"), *PromQL);
+				UE_LOG(LogTemp, Error, TEXT("[PrometheusManager] RangeQuery failed: %s | Code: %d | Body: %s"),
+					*PromQL,
+					Response->GetResponseCode(),
+					*Response->GetContentAsString());
+				return;
+			}
+			OnRangeQueryResponseReceived(PromQL, Response->GetContentAsString());
+		});
+
+	Request->SetURL(Url);
+	Request->SetHeader("Content-Type", "application/json");
+	Request->SetHeader("Authorization", "Basic " + FBase64::Encode(Account + ":" + Password));
+	Request->SetVerb(TEXT("GET"));
+	Request->ProcessRequest();
+}
+
+void APrometheusManager::OnRangeQueryResponseReceived(const FString& PromQL, const FString& JsonString)
+{
+	TArray<FVector2D> DataPoints;
+
+	TSharedPtr<FJsonObject> JsonObject;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(JsonString);
+
+	if (FJsonSerializer::Deserialize(Reader, JsonObject) && JsonObject.IsValid())
+	{
+		// 取 data 物件
+		const TSharedPtr<FJsonObject>* DataObj;
+		if (JsonObject->TryGetObjectField(TEXT("data"), DataObj))
+		{
+			// 取 result array
+			const TArray<TSharedPtr<FJsonValue>>* ResultArray;
+			if ((*DataObj)->TryGetArrayField(TEXT("result"), ResultArray))
+			{
+				for (const TSharedPtr<FJsonValue>& ResultEntry : *ResultArray)
+				{
+					TSharedPtr<FJsonObject> ResultObj = ResultEntry->AsObject();
+					if (!ResultObj.IsValid()) continue;
+
+					// 取 values array
+					const TArray<TSharedPtr<FJsonValue>>* ValuesArray;
+					if (ResultObj->TryGetArrayField(TEXT("values"), ValuesArray))
+					{
+						for (const TSharedPtr<FJsonValue>& V : *ValuesArray)
+						{
+							const TArray<TSharedPtr<FJsonValue>>* PointArray;
+							if (V->TryGetArray(PointArray) && PointArray->Num() == 2)
+							{
+								double Timestamp = (*PointArray)[0]->AsNumber();
+								FString ValueStr = (*PointArray)[1]->AsString();
+
+								float Value = FCString::Atof(*ValueStr);
+
+								DataPoints.Add(FVector2D(Timestamp, Value));
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	OnRangeQueryResponse.Broadcast(PromQL, DataPoints);
+
+	UE_LOG(LogTemp, Log, TEXT("[Prometheus] RangeQuery %s returned %d points"), *PromQL, DataPoints.Num());
 }

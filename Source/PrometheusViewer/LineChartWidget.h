@@ -14,6 +14,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Chart")
     void SetChartData(const TArray<FVector2D>& InDataPoints);
 
+    UFUNCTION(BlueprintCallable, Category = "LineChart")
+    void AddDataPoint(float X, float Y);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Chart")
 	int32 UserTimezone;
 
@@ -31,4 +34,6 @@ protected:
 private:
     UPROPERTY()
     TArray<FVector2D> DataPoints;
+
+    int32 MaxPoints = 300;
 };

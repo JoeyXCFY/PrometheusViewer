@@ -87,4 +87,5 @@ void UDashboardWidget::OnQueryResponseReceived(const FString& PromQL, const FStr
             Item->OnQueryResponseReceived(PromQL, Result);
         }
     }
+
 }

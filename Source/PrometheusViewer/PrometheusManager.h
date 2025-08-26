@@ -13,6 +13,7 @@ class UTextBlock;
 class ULineChartWidget;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPrometheusQueryResponse, const FString&, PromQL, const FString&, Result);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMetricsFetchedDelegate, const TArray<FString>&, Metrics);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnRangeQueryResponse, const FString&, PromQL, const TArray<FVector2D>&, DataPoints);
 
 
 USTRUCT(BlueprintType)
@@ -127,6 +128,11 @@ public:
 	void OnQueryRangeResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 	void QueryRangePrometheus(const FPrometheusRangeQueryInfo& Info);
 	void FetchAvailableMetrics();
+	void OnRangeQueryResponseReceived(const FString& PromQL, const FString& JsonString);
+	UFUNCTION(BlueprintCallable, Category = "Prometheus")
+	void HandleRangeQuery(const FString& PromQL, float RangeSeconds, float StepSeconds);
+	UPROPERTY(BlueprintAssignable, Category = "Prometheus")
+	FOnRangeQueryResponse OnRangeQueryResponse;
 
 	FTimerHandle QueryTimerHandle;
 	void HandleQuery(const FString& PromQL);
@@ -172,4 +178,5 @@ public:
 protected:
 	virtual void BeginPlay() override;
 	TArray<FMonitoringRequest> PendingMonitoringRequests;
+
 };

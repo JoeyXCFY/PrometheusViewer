@@ -32,9 +32,13 @@ void UMonitoringItemWidget::InitializeOptions(APrometheusManager* Manager)
         TypeComboBox->AddOption("Usage%");
     }
 
+    if (!Manager->OnRangeQueryResponse.IsAlreadyBound(this, &UMonitoringItemWidget::OnRangeQueryResponseReceived))
+    {
+        Manager->OnRangeQueryResponse.AddDynamic(this, &UMonitoringItemWidget::OnRangeQueryResponseReceived);
+    }
+
     Manager->FetchAvailableMetrics();
 }
-
 
 void UMonitoringItemWidget::OnMetricsReady(const TArray<FString>& Metrics)
 {
@@ -57,6 +61,13 @@ void UMonitoringItemWidget::OnMetricChanged(FString Selected, ESelectInfo::Type)
     if (!SelectedType.IsEmpty())
     {
         const FString FinalPromQL = GeneratePromQL(SelectedMetric, SelectedType);
+
+        if (ManagerRef)
+        {
+            // 送範圍查詢 (例如最近 300 秒，每 15 秒取一點)
+            ManagerRef->HandleRangeQuery(FinalPromQL, 300.f, 5.f);
+        }
+
         OnPromQueryGenerated.Broadcast(FinalPromQL, this);
     }
 }
@@ -68,6 +79,10 @@ void UMonitoringItemWidget::OnTypeChanged(FString Selected, ESelectInfo::Type)
     if (!SelectedMetric.IsEmpty())
     {
         const FString FinalPromQL = GeneratePromQL(SelectedMetric, SelectedType);
+        if (ManagerRef)
+        {
+            ManagerRef->HandleRangeQuery(FinalPromQL, 300.f, 5.f);
+        }
         OnPromQueryGenerated.Broadcast(FinalPromQL, this);
     }
 }
@@ -105,10 +120,44 @@ void UMonitoringItemWidget::OnQueryResponseReceived(const FString& PromQL, const
         UE_LOG(LogTemp, Error, TEXT("ResultText is nullptr!"));
     }
 
-    if (PromQL == LastSentPromQL && ResultText)
-    {
+    if (PromQL == LastSentPromQL) {
+
         float FloatValue = FCString::Atof(*Result);
-        FString FormattedResult = FString::Printf(TEXT("%.3f"), FloatValue);
-        ResultText->SetText(FText::FromString(FormattedResult));
+        if (ResultText)
+        {
+            FString FormattedResult = FString::Printf(TEXT("%.3f"), FloatValue);
+            ResultText->SetText(FText::FromString(FormattedResult));
+        }
+
+    }
+
+}
+
+void UMonitoringItemWidget::OnRangeQueryResponseReceived(const FString& PromQL, const TArray<FVector2D>& DataPoints)
+{
+    if (PromQL == LastSentPromQL && LineChartResult)
+    {
+        InitializeChartWithHistory(DataPoints);
+    }
+}
+
+
+void UMonitoringItemWidget::InitializeChartWithHistory(const TArray<FVector2D>& DataPoints)
+{
+    UE_LOG(LogTemp, Warning, TEXT("[RangeQuery] HistoryPoints count=%d"), DataPoints.Num());
+    for (const auto& P : DataPoints)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Point: Time=%f, Value=%f"), P.X, P.Y);
+    }
+    if (LineChartResult)
+    {
+        // 直接用 SetChartData 覆蓋舊資料
+        LineChartResult->SetChartData(DataPoints);
+
+        UE_LOG(LogTemp, Log, TEXT("LineChart initialized with %d history points"), DataPoints.Num());
+    }
+    else
+    {
+        UE_LOG(LogTemp, Error, TEXT("LineChart is nullptr in InitializeChartWithHistory!"));
     }
 }

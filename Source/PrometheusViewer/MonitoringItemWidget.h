@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/ComboBoxString.h"
+#include "LineChartWidget.h"
 #include "MonitoringItemWidget.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPromQueryGenerated, const FString&, PromQL, class UMonitoringItemWidget*, TargetWidget);
@@ -17,6 +18,7 @@ public:
     UPROPERTY(meta = (BindWidget)) class UComboBoxString* MetricComboBox;
     UPROPERTY(meta = (BindWidget)) class UComboBoxString* TypeComboBox;
     UPROPERTY(meta = (BindWidget)) class UTextBlock* ResultText;
+    UPROPERTY(meta = (BindWidget)) class ULineChartWidget* LineChartResult;
 
     UFUNCTION()
     void OnMetricChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
@@ -52,6 +54,12 @@ public:
 
     UPROPERTY()
     bool bMetricsInitialized = false;
+
+    UFUNCTION()
+    void OnRangeQueryResponseReceived(const FString& PromQL, const TArray<FVector2D>& DataPoints);
+
+    UFUNCTION()
+    void InitializeChartWithHistory(const TArray<FVector2D>& DataPoints);
 protected:
     APrometheusManager* ManagerRef;
 };

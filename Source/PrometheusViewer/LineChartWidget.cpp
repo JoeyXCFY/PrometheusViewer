@@ -16,6 +16,30 @@ void ULineChartWidget::SetChartData(const TArray<FVector2D>& InDataPoints)
     }
 }
 
+void ULineChartWidget::AddDataPoint(float X, float Y)
+{
+
+    if (DataPoints.Num() > 0 && X <= DataPoints.Last().X)
+    {
+        // 避免時間倒退，直接丟棄
+        return;
+    }
+    DataPoints.Add(FVector2D(X, Y));
+
+    // 定義要保留的時間範圍 (例如最近 300 秒)
+    const float WindowSeconds = 300.0f;
+
+    // 只保留在時間範圍內的點
+    float CurrentTime = X;
+    while (DataPoints.Num() > 0 && DataPoints[0].X < CurrentTime - WindowSeconds)
+    {
+        DataPoints.RemoveAt(0);
+    }
+
+    // 觸發重繪
+    Invalidate(EInvalidateWidget::LayoutAndVolatility);
+}
+
 FReply ULineChartWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FPointerEvent& InMouseEvent)
 {
     bMouseHovered = true;

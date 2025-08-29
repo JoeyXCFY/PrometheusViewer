@@ -108,25 +108,21 @@ public:
 	FString Account;
 	UPROPERTY(EditAnywhere, Category = "PrometheusManage")
 	FString Password;
-	UPROPERTY(EditAnywhere, Category = "UI")
-	TSubclassOf<UUserWidget>WidgetClass;
+	UPROPERTY(EditAnywhere, Category = "PrometheusManage|UI")
+	TSubclassOf<UUserWidget> LoginWidgetClass;
+	UPROPERTY(EditAnywhere, Category = "PrometheusManage|UI")
+	TSubclassOf<UUserWidget> DashboardWidgetClass;
+	UUserWidget* CurrentWidget;
+	UFUNCTION(BlueprintCallable)
+	void ShowDashboard();
 
 	TArray<FPrometheusRangeQueryInfo> RangeQueryList;
-
-	UUserWidget* HUDWidget;
 
 	TArray<FPrometheusQueryInfo> QueryList;
 
 	TMap<FString, TWeakObjectPtr<ULineChartWidget>> LineChartMap;
 	TMap<FString, TWeakObjectPtr<UTextBlock>> QueryTextMap;
 
-	UFUNCTION()
-	void QueryPrometheus(const FPrometheusQueryInfo& Info);
-	void OnPrometheusResponseReceived(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
-	void UpdatePrometheus();
-	void UpdateRangeMetrics();
-	void OnQueryRangeResponse(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
-	void QueryRangePrometheus(const FPrometheusRangeQueryInfo& Info);
 	void FetchAvailableMetrics();
 	void OnRangeQueryResponseReceived(const FString& PromQL, const FString& JsonString);
 	UFUNCTION(BlueprintCallable, Category = "Prometheus")

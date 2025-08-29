@@ -5,6 +5,7 @@
 #include "Rendering/DrawElements.h"
 #include "Math/UnrealMathUtility.h"
 
+
 void ULineChartWidget::SetChartData(const TArray<FVector2D>& InDataPoints)
 {
     DataPoints = InDataPoints;
@@ -44,12 +45,14 @@ FReply ULineChartWidget::NativeOnMouseMove(const FGeometry& InGeometry, const FP
 {
     bMouseHovered = true;
     CachedMousePosition = InGeometry.AbsoluteToLocal(InMouseEvent.GetScreenSpacePosition());
+    Invalidate(EInvalidateWidget::LayoutAndVolatility);
     return FReply::Handled();
 }
 
 void ULineChartWidget::NativeOnMouseLeave(const FPointerEvent& InMouseEvent)
 {
     bMouseHovered = false;
+    Invalidate(EInvalidateWidget::LayoutAndVolatility);
 }
 
 int32 ULineChartWidget::NativePaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
@@ -258,5 +261,5 @@ int32 ULineChartWidget::NativePaint(const FPaintArgs& Args, const FGeometry& All
         }
     }
 
-    return LayerId + 1;
+    return LayerId + 2;
 }

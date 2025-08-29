@@ -1,6 +1,6 @@
 {
   "node_cpu_seconds_total": {
-    "Raw": "node_cpu_seconds_total",
+    "Raw": "sum by (instance) (rate(node_cpu_seconds_total[1m]))",
     "Usage%": "sum by (instance) (rate(node_cpu_seconds_total{mode!=\"idle\"}[1m])) * 100"
   },
   "node_memory_MemAvailable_bytes": {

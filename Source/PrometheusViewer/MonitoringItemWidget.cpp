@@ -149,15 +149,34 @@ void UMonitoringItemWidget::InitializeChartWithHistory(const TArray<FVector2D>& 
     {
         UE_LOG(LogTemp, Warning, TEXT("Point: Time=%f, Value=%f"), P.X, P.Y);
     }
-    if (LineChartResult)
-    {
-        // 直接用 SetChartData 覆蓋舊資料
-        LineChartResult->SetChartData(DataPoints);
 
-        UE_LOG(LogTemp, Log, TEXT("LineChart initialized with %d history points"), DataPoints.Num());
+    if (!LineChartResult)
+    {
+        UE_LOG(LogTemp, Error, TEXT("LineChart is nullptr in InitializeChartWithHistory!"));
+        return;
+    }
+
+    TArray<FVector2D> FinalPoints;
+
+    if (SelectedType.Equals("Raw", ESearchCase::IgnoreCase))
+    {
+        for (int32 i = 1; i < DataPoints.Num(); i++)
+        {
+            float Delta = DataPoints[i].Y - DataPoints[i - 1].Y;
+            if (Delta < 0)
+            {
+                // Counter reset，設成 0
+                Delta = 0.0f;
+            }
+            FinalPoints.Add(FVector2D(DataPoints[i].X, Delta));
+        }
+        UE_LOG(LogTemp, Log, TEXT("Processed Raw mode with %d delta points"), FinalPoints.Num());
     }
     else
     {
-        UE_LOG(LogTemp, Error, TEXT("LineChart is nullptr in InitializeChartWithHistory!"));
+        FinalPoints = DataPoints;
     }
+
+    LineChartResult->SetChartData(FinalPoints);
+    UE_LOG(LogTemp, Log, TEXT("LineChart initialized with %d points (mode=%s)"), FinalPoints.Num(), *SelectedType);
 }

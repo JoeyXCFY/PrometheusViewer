@@ -1,11 +1,11 @@
-# Binaries, Intermediate, Build Cache
+# UE5 build / cache
 Binaries/
-DerivedDataCache/
+Build/
 Intermediate/
 Saved/
-Build/
+DerivedDataCache/
 
-# VS / Xcode 工作資料
+# VS / Xcode
 .vscode/
 .vs/
 *.VC.db
@@ -18,17 +18,13 @@ Build/
 *.sdf
 *.cache
 *.log
-
-# MacOS
-.DS_Store
-
-# Linux
-*.swp
-
-# Auto-generated project files (可選)
 *.xcodeproj
 *.xcworkspace
 *.xcuserdata
+
+# OS files
+.DS_Store
+*.swp
 
 # Build artifacts
 *.pdb
@@ -44,16 +40,10 @@ Build/
 # Crash logs
 *.dmp
 
-# UBT/UBTMake
+# UBT / UBTMake
 *.ubt
 
 # Pak / 打包檔
 *.pak
 *.ucas
 *.utoc
-
-# 編譯產物
-Binaries/
-Build/
-Saved/
-Intermediate/

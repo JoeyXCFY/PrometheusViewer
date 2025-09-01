@@ -52,7 +52,7 @@ void ULoginWidget::OnTextCommitted(const FText& Text, ETextCommit::Type CommitMe
         {
             if (ErrorText)
             {
-                ErrorText->SetText(FText::FromString(TEXT("請填寫所有欄位才可登入")));
+                ErrorText->SetText(FText::FromString(TEXT("請填寫所有欄位")));
             }
         }
     }
@@ -61,10 +61,8 @@ void ULoginWidget::OnTextCommitted(const FText& Text, ETextCommit::Type CommitMe
 
 void ULoginWidget::OnTextChanged(const FText& Text)
 {
-    // 每次文字改變就更新按鈕是否可按
     UpdateLoginButtonState();
 
-    // 同時清掉錯誤（若有）
     if (ErrorText && !IsInputValid())
     {
         ErrorText->SetText(FText::GetEmpty());

@@ -10,6 +10,6 @@ public class PrometheusViewerTarget : TargetRules
 		Type = TargetType.Game;
 		DefaultBuildSettings = BuildSettingsVersion.V5;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_4;
-		ExtraModuleNames.Add("PrometheusViwer");
+		ExtraModuleNames.Add("PrometheusViewer");
 	}
 }

@@ -46,3 +46,14 @@ Build/
 
 # UBT/UBTMake
 *.ubt
+
+# Pak / 打包檔
+*.pak
+*.ucas
+*.utoc
+
+# 編譯產物
+Binaries/
+Build/
+Saved/
+Intermediate/

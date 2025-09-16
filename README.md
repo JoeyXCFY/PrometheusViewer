@@ -17,7 +17,7 @@ ADMIN_USER='admin' ADMIN_PASSWORD='admin' ADMIN_PASSWORD_HASH='$2a$14$1l.IozJx7x
 
 這將會在本機啟動 Prometheus + cAdvisor + Node Exporter + Grafana 等容器，PrometheusViewer 會透過 Prometheus API 抓取資料。
 
-##🚀 使用方式
+## 🚀 使用方式
 下載已編譯好的 EXE (Google Drive 下載連結)：
 
 Google Drive - PrometheusViewer EXE
@@ -39,14 +39,14 @@ IP：部署有 dockprom 的主機位址
 
 即時查看數據或繪製圖表
 
-##⚙️ 開發資訊
+## ⚙️ 開發資訊
 Unreal Engine：5.4.4
 
 Visual Studio：2022
 
 語言：C++ / Blueprint 混合
 
-##專案結構：
+## 專案結構：
 
 PrometheusManager：負責與 Prometheus API 溝通
 
@@ -56,7 +56,7 @@ MonitoringItemWidget：單一監控項目模組
 
 LoginWidget：登入介面
 
-##📝 待辦 / Roadmap
+## 📝 待辦 / Roadmap
  支援更多圖表樣式 (Bar/Donut/Heatmap)
 
  提供使用者自訂 PromQL 查詢
@@ -65,7 +65,7 @@ LoginWidget：登入介面
 
  多用戶登入與權限管理
  
-##📄 License
+## 📄 License
 前置部分環境參考
 https://github.com/stefanprodan/dockprom
 

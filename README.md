@@ -9,16 +9,12 @@ PrometheusViewer 是一個使用 **Unreal Engine 5.4.4** 開發的監控視覺�
 
 要讓 PrometheusViewer 正常運作，使用者需要先在欲監測的系統上部署 [dockprom](https://github.com/stefanprodan/dockprom) 環境：
 
-
+```bash
 git clone https://github.com/stefanprodan/dockprom
 cd dockprom
 ADMIN_USER='admin' ADMIN_PASSWORD='admin' ADMIN_PASSWORD_HASH='$2a$14$1l.IozJx7xQRVmlkEQ32OeEEfP5mRxTpbDTCTcXRqn19gXD8YK1pO' docker-compose up -d
+```
 
-# 啟動服務 (預設帳密：admin / admin)
-ADMIN_USER='admin' \
-ADMIN_PASSWORD='admin' \
-ADMIN_PASSWORD_HASH='$2a$14$1l.IozJx7xQRVmlkEQ32OeEEfP5mRxTpbDTCTcXRqn19gXD8YK1pO' \
-docker-compose up -d
 這將會在本機啟動 Prometheus + cAdvisor + Node Exporter + Grafana 等容器，PrometheusViewer 會透過 Prometheus API 抓取資料。
 
 🚀 使用方式
@@ -68,6 +64,9 @@ LoginWidget：登入介面
  Alert 異常通知
 
  多用戶登入與權限管理
+ 
 📄 License
+前置部分環境參考
+https://github.com/stefanprodan/dockprom
 
 本專案僅作為個人學習與展示使用，無商業授權。
